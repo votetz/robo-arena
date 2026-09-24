@@ -22,6 +22,7 @@ const trackBot = document.getElementById('track-bot') as unknown as SVGGElement 
 const botMotion = document.getElementById('bot-motion') as unknown as SVGAnimateMotionElement | null;
 const trackSvg = document.querySelector<SVGSVGElement>('.track-svg');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const MIN_PASSWORD = 8;
 
 const trackD = document
   .getElementById('race-track')
@@ -105,7 +106,7 @@ function clearAlert(): void {
     alertBox.className = 'alert-box hidden';
   }
   trackBot?.classList.remove('bot-error', 'bot-success');
-  
+
   if (!reduceMotion) {
     if (botAnimation) {
       botAnimation.playbackRate = 1.0;
@@ -265,8 +266,8 @@ formReg?.addEventListener('submit', async (e: Event) => {
     fail(emailError, regEmail);
     return;
   }
-  if (pass.length < 8) {
-    fail('Ключ доступу має містити не менше 8 символів.', regPass);
+  if (pass.length < MIN_PASSWORD) {
+    fail(`Ключ доступу має містити не менше ${MIN_PASSWORD} символів.`, regPass);
     return;
   }
 
@@ -333,3 +334,69 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
   root.setAttribute('data-theme', next);
   syncThemeButton(next);
 });
+
+const API_BASE = '/auth';
+
+async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = localStorage.getItem('accessToken');
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Request failed');
+  return data;
+}
+
+function setTokens(access: string, refresh: string): void {
+  localStorage.setItem('accessToken', access);
+  localStorage.setItem('refreshToken', refresh);
+}
+
+function clearTokens(): void {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refresh = localStorage.getItem('refreshToken');
+  if (!refresh) return null;
+  try {
+    const data = await api<{ accessToken: string; refreshToken: string }>('/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken: refresh }),
+    });
+    setTokens(data.accessToken, data.refreshToken);
+    return data.accessToken;
+  } catch {
+    clearTokens();
+    return null;
+  }
+}
+
+async function requestWithRefresh<T>(path: string, options: RequestInit = {}): Promise<T> {
+  try {
+    return await api<T>(path, options);
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('401')) {
+      const newToken = await refreshAccessToken();
+      if (newToken) return api<T>(path, options);
+    }
+    throw e;
+  }
+}
+
+const savedToken = localStorage.getItem('accessToken');
+if (savedToken) {
+  try {
+    await requestWithRefresh('/me');
+    // Don't auto-redirect on login page (root) since dashboard doesn't exist yet
+    if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+      window.location.href = '/dashboard.html';
+    }
+  } catch {
+    clearTokens();
+  }
+}
