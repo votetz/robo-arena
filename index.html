@@ -3,7 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RoboArena — Допуск до заїздів</title>
+    <title>RoboArena</title>
+
+    <script>
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem('ra_theme'); } catch (e) {}
+        if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      })();
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -13,12 +23,24 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
+    <aside class="theme-switch-container">
+      <button 
+        type="button" 
+        id="theme-toggle" 
+        class="theme-toggle-btn"
+        aria-pressed="false"
+      >
+        <span class="theme-icon" aria-hidden="true">◐</span>
+        <span class="theme-text"></span>
+      </button>
+    </aside>
+
     <div class="field-surface" aria-hidden="true">
       <svg class="track-svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
         <defs>
           <pattern id="grid-pattern" width="60" height="60" patternUnits="userSpaceOnUse">
-            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#d2d7dc" stroke-width="1" />
-            <circle cx="60" cy="0" r="1.5" fill="#9da7b3" />
+            <path class="grid-line" d="M 60 0 L 0 0 0 60" fill="none" stroke-width="1" />
+            <circle class="grid-dot" cx="60" cy="0" r="1.5" />
           </pattern>
 
           <path
@@ -39,7 +61,7 @@
         <rect width="100%" height="100%" fill="url(#grid-pattern)" />
 
         <g class="start-box" transform="translate(130, 180)">
-          <rect width="250" height="210" fill="none" stroke="#181c20" stroke-width="2" stroke-dasharray="8 6" />
+          <rect class="box-outline" width="250" height="210" fill="none" stroke-width="2" stroke-dasharray="8 6" />
           <text x="18" y="32" class="field-label">СТАТУС ГОНКИ // РОЗКЛАД</text>
 
           <text x="18" y="58" class="field-info-title">СТАН ТРАСИ:</text>
@@ -52,18 +74,20 @@
           <text x="18" y="186" class="field-info-sub">СКОРО</text>
         </g>
 
-        <use href="#race-track" fill="none" stroke="#181c20" stroke-width="18"
+        <use class="track-main" href="#race-track" fill="none" stroke-width="18"
              stroke-linejoin="round" stroke-linecap="round" />
-        <use href="#race-track" fill="none" stroke="#edf0f3" stroke-width="2"
+        
+        <use class="track-dash" href="#race-track" fill="none" stroke-width="2"
              stroke-dasharray="6 8" />
 
-        <line x1="370" y1="386" x2="370" y2="434" stroke="#c23b00" stroke-width="6" />
+        <line class="start-line" x1="370" y1="386" x2="370" y2="434" stroke-width="6" />
 
         <g id="track-bot" class="bot-marker">
           <g class="bot-body">
             <rect class="bot-shell" x="-13" y="-8" width="26" height="16" rx="3" />
             <rect class="bot-light" x="10" y="-3.5" width="5" height="7" rx="1" />
           </g>
+          <!-- Фолбэк-анимация: удаляется через JS, если поддерживается WAAPI + offset-path -->
           <animateMotion id="bot-motion" dur="24s" repeatCount="indefinite" rotate="auto">
             <mpath href="#race-track" />
           </animateMotion>
@@ -84,9 +108,9 @@
 
         <div class="dock-tabs" role="tablist" aria-label="Режим допуску">
           <button type="button" id="tab-login-btn" class="tab-btn active"
-                  role="tab" aria-selected="true" aria-controls="form-login">Вхід</button>
+                  role="tab" aria-selected="true" tabindex="0" aria-controls="form-login">Вхід</button>
           <button type="button" id="tab-reg-btn" class="tab-btn"
-                  role="tab" aria-selected="false" aria-controls="form-register">Реєстрація</button>
+                  role="tab" aria-selected="false" tabindex="-1" aria-controls="form-register">Реєстрація</button>
         </div>
 
         <div id="auth-alert" class="alert-box hidden" role="alert"></div>
