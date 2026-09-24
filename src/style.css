@@ -533,18 +533,3 @@ body {
   .start-box {
     display: none;
   }
-<<<<<<< Updated upstream
-  .dock-card {
-    padding: 24px 20px;
-    box-shadow: 5px 5px 0 rgba(21, 24, 29, 0.95);
-=======
-  .dock-container {
-    padding-top: 64px;
-  }
-  .theme-switch-container {
-    position: absolute;
-    top: 12px;
-    right: 12px;
->>>>>>> Stashed changes
-  }
-}
