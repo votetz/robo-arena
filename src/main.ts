@@ -1,60 +1,138 @@
-import './style.css'
-import heroImg from './assets/hero.png'
-import typescriptLogo from './assets/typescript.svg'
-import viteLogo from './assets/vite.svg'
-import { setupCounter } from './counter.ts'
+export {};
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${typescriptLogo}" class="framework" alt="TypeScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.ts</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+const $ = <T extends HTMLElement>(id: string): T | null =>
+  document.getElementById(id) as T | null;
 
-<div class="ticks"></div>
+const tabLogin = $<HTMLButtonElement>('tab-login-btn');
+const tabReg = $<HTMLButtonElement>('tab-reg-btn');
+const formLogin = $<HTMLFormElement>('form-login');
+const formReg = $<HTMLFormElement>('form-register');
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://www.typescriptlang.org" target="_blank">
-          <img class="button-icon" src="${typescriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+const loginId = $<HTMLInputElement>('login-email');
+const loginPass = $<HTMLInputElement>('login-password');
+const regUser = $<HTMLInputElement>('reg-username');
+const regEmail = $<HTMLInputElement>('reg-email');
+const regPass = $<HTMLInputElement>('reg-password');
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+const alertBox = $<HTMLDivElement>('auth-alert');
+const cardBox = $<HTMLDivElement>('auth-card-box');
+const trackBot = $<HTMLDivElement>('track-bot');
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+const DISPOSABLE_DOMAINS = [
+  'tempmail.com', '10minutemail.com', 'guerrillamail.com',
+  'mailinator.com', 'trashmail.com', 'yopmail.com', 'temp-mail.org',
+];
+
+const EMAIL_RE =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+function validateEmail(email: string): string | null {
+  if (!EMAIL_RE.test(email)) return 'Введіть коректну адресу електронної пошти.';
+  const domain = email.split('@')[1].toLowerCase();
+  if ((domain.split('.').pop() ?? '').length < 2) return 'Некоректна доменна зона в email.';
+  if (DISPOSABLE_DOMAINS.some((d) => domain === d || domain.endsWith('.' + d))) {
+    return 'Тимчасові поштові скриньки заборонено.';
+  }
+  return null;
+}
+
+let redirectTimer: number | undefined;
+
+function clearAlert(): void {
+  window.clearTimeout(redirectTimer);
+  if (alertBox) {
+    alertBox.textContent = '';
+    alertBox.className = 'alert-box hidden';
+  }
+  trackBot?.classList.remove('bot-error', 'bot-success');
+}
+
+function fail(message: string, field?: HTMLInputElement | null): void {
+  if (alertBox) {
+    alertBox.textContent = message;
+    alertBox.className = 'alert-box alert-error';
+  }
+  cardBox?.classList.remove('shake');
+  void cardBox?.offsetWidth;
+  cardBox?.classList.add('shake');
+
+  trackBot?.classList.remove('bot-success');
+  trackBot?.classList.add('bot-error');
+  field?.focus();
+}
+
+function succeed(message: string): void {
+  if (alertBox) {
+    alertBox.textContent = message;
+    alertBox.className = 'alert-box alert-success';
+  }
+  trackBot?.classList.remove('bot-error');
+  trackBot?.classList.add('bot-success');
+}
+
+function switchTab(target: 'login' | 'reg'): void {
+  clearAlert();
+  const isLogin = target === 'login';
+  tabLogin?.classList.toggle('active', isLogin);
+  tabReg?.classList.toggle('active', !isLogin);
+  tabLogin?.setAttribute('aria-selected', String(isLogin));
+  tabReg?.setAttribute('aria-selected', String(!isLogin));
+  formLogin?.classList.toggle('hidden', !isLogin);
+  formReg?.classList.toggle('hidden', isLogin);
+}
+
+tabLogin?.addEventListener('click', () => switchTab('login'));
+tabReg?.addEventListener('click', () => switchTab('reg'));
+
+cardBox?.addEventListener('animationend', () => cardBox.classList.remove('shake'));
+
+formLogin?.addEventListener('submit', (e: Event) => {
+  e.preventDefault();
+  clearAlert();
+
+  const id = loginId?.value.trim() ?? '';
+  const pass = loginPass?.value ?? '';
+
+  if (!id || !pass) {
+    fail('Заповніть усі поля для авторизації.', !id ? loginId : loginPass);
+    return;
+  }
+
+  succeed(`Допуск надано! Вітаємо, ${id}. Перехід...`);
+});
+
+formReg?.addEventListener('submit', (e: Event) => {
+  e.preventDefault();
+  clearAlert();
+
+  const username = regUser?.value.trim() ?? '';
+  const email = regEmail?.value.trim() ?? '';
+  const pass = regPass?.value ?? '';
+
+  if (!username || !email || !pass) {
+    fail('Усі поля реєстрації обов’язкові.', !username ? regUser : !email ? regEmail : regPass);
+    return;
+  }
+  if (username.length < 3) {
+    fail('Позивний має містити щонайменше 3 символи.', regUser);
+    return;
+  }
+  const emailError = validateEmail(email);
+  if (emailError) {
+    fail(emailError, regEmail);
+    return;
+  }
+  if (pass.length < 6) {
+    fail('Ключ доступу має містити не менше 6 символів.', regPass);
+    return;
+  }
+
+  succeed('Пілота успішно внесено до стартового протоколу!');
+  formReg.reset();
+
+  redirectTimer = window.setTimeout(() => {
+    switchTab('login');
+    if (loginId) loginId.value = email;
+    loginPass?.focus();
+  }, 1200);
+});
