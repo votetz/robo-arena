@@ -22,7 +22,6 @@ const trackBot = document.getElementById('track-bot') as unknown as SVGGElement 
 const botMotion = document.getElementById('bot-motion') as unknown as SVGAnimateMotionElement | null;
 const trackSvg = document.querySelector<SVGSVGElement>('.track-svg');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const MIN_PASSWORD = 6;
 
 const trackD = document
   .getElementById('race-track')
@@ -68,6 +67,31 @@ function validateEmail(email: string): string | null {
     return 'Тимчасові поштові скриньки заборонено.';
   }
   return null;
+}
+
+function translateBackendError(message: string): string {
+  const normalized = message.trim().toLowerCase();
+
+  if (normalized.includes('invalid credentials') || normalized.includes('unauthorized')) {
+    return 'Невірний позивний або ключ доступу.';
+  }
+  if (normalized.includes('already exists') || normalized.includes('conflict')) {
+    if (normalized.includes('email')) {
+      return 'Ця електронна пошта вже зареєстрована.';
+    }
+    if (normalized.includes('username')) {
+      return 'Цей позивний вже зайнятий іншим пілотом.';
+    }
+    return 'Користувач із такими даними вже зареєстрований.';
+  }
+  if (normalized.includes('not found')) {
+    return 'Пілота з такими даними не знайдено.';
+  }
+  if (normalized.includes('too many requests')) {
+    return 'Забагато спроб входу. Зачекайте деякий час.';
+  }
+
+  return message || 'Помилка підключення до сервера допуску.';
 }
 
 let redirectTimer: number | undefined;
@@ -174,7 +198,7 @@ tabsList.forEach((tab, index) => {
 
 cardBox?.addEventListener('animationend', () => cardBox.classList.remove('shake'));
 
-formLogin?.addEventListener('submit', (e: Event) => {
+formLogin?.addEventListener('submit', async (e: Event) => {
   e.preventDefault();
   clearAlert();
 
@@ -186,10 +210,41 @@ formLogin?.addEventListener('submit', (e: Event) => {
     return;
   }
 
-  succeed(`Допуск надано! Вітаємо, ${id}. Перехід...`);
+  const submitBtn = formLogin.querySelector<HTMLButtonElement>('button[type="submit"]');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Вхід...';
+  }
+
+  try {
+    const data = await api<{
+      user: { id: number; email: string; username: string };
+      accessToken: string;
+      refreshToken: string;
+    }>('/login', {
+      method: 'POST',
+      body: JSON.stringify({ identifier: id, password: pass }),
+    });
+
+    setTokens(data.accessToken, data.refreshToken);
+    succeed(`Допуск надано! Вітаємо, ${data.user.username}. Перехід...`);
+    formLogin.reset();
+
+    redirectTimer = window.setTimeout(() => {
+      window.location.href = '/dashboard.html';
+    }, 1000);
+  } catch (err) {
+    const rawError = err instanceof Error ? err.message : '';
+    fail(translateBackendError(rawError), loginPass);
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Увійти в кабінет';
+    }
+  }
 });
 
-formReg?.addEventListener('submit', (e: Event) => {
+formReg?.addEventListener('submit', async (e: Event) => {
   e.preventDefault();
   clearAlert();
 
@@ -210,19 +265,45 @@ formReg?.addEventListener('submit', (e: Event) => {
     fail(emailError, regEmail);
     return;
   }
-  if (pass.length < MIN_PASSWORD) {
-    fail(`Ключ доступу має містити не менше ${MIN_PASSWORD} символів.`, regPass);
+  if (pass.length < 8) {
+    fail('Ключ доступу має містити не менше 8 символів.', regPass);
     return;
   }
 
-  succeed('Пілота успішно внесено до стартового протоколу!');
-  formReg.reset();
+  const submitBtn = formReg.querySelector<HTMLButtonElement>('button[type="submit"]');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Реєстрація...';
+  }
 
-  redirectTimer = window.setTimeout(() => {
-    switchTab('login');
-    if (loginId) loginId.value = email;
-    loginPass?.focus();
-  }, 1200);
+  try {
+    const data = await api<{
+      user: { id: number; email: string; username: string };
+      accessToken: string;
+      refreshToken: string;
+    }>('/register', {
+      method: 'POST',
+      body: JSON.stringify({ username, email, password: pass }),
+    });
+
+    setTokens(data.accessToken, data.refreshToken);
+    succeed('Пілота успішно внесено до стартового протоколу!');
+    formReg.reset();
+
+    redirectTimer = window.setTimeout(() => {
+      switchTab('login');
+      if (loginId) loginId.value = email;
+      loginPass?.focus();
+    }, 1200);
+  } catch (err) {
+    const rawError = err instanceof Error ? err.message : '';
+    fail(translateBackendError(rawError), regEmail);
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Зареєструвати пілота';
+    }
+  }
 });
 
 const root = document.documentElement;
