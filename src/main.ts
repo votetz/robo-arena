@@ -79,6 +79,12 @@ function switchTab(target: 'login' | 'reg'): void {
   tabReg?.setAttribute('aria-selected', String(!isLogin));
   formLogin?.classList.toggle('hidden', !isLogin);
   formReg?.classList.toggle('hidden', isLogin);
+
+  if (isLogin) {
+    loginId?.focus();
+  } else {
+    regUser?.focus();
+  }
 }
 
 tabLogin?.addEventListener('click', () => switchTab('login'));
